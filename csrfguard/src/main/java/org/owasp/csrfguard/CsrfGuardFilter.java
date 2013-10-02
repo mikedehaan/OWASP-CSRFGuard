@@ -29,6 +29,7 @@
 package org.owasp.csrfguard;
 
 import org.owasp.csrfguard.http.InterceptRedirectResponse;
+import org.owasp.csrfguard.util.WebsealUtil;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -64,10 +65,9 @@ public final class CsrfGuardFilter implements Filter {
 			}
 
             // Check to see if we should bypass security
-            String websealUser = (String)session.getAttribute("IS_WEBSEAL_USER");
-            boolean isWebsealUser = (websealUser != null ? Boolean.parseBoolean(websealUser) : false);
+            boolean isWebsealSession = WebsealUtil.isWebsealSession(session);
 
-            if (!isWebsealUser) {
+            if (!isWebsealSession) {
 
                 CsrfGuard csrfGuard = CsrfGuard.getInstance();
                 csrfGuard.getLogger().log(String.format("CsrfGuard analyzing request %s", httpRequest.getRequestURI()));
