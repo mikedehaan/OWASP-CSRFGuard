@@ -7,3 +7,5 @@
 /csrfguard-test/.project
 /csrfguard-test/target
 /csrfguard-test/WEB-INF/classes
+.idea/
+csrfguard.iml

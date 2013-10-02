@@ -1,8 +1,8 @@
 /**
  * The OWASP CSRFGuard Project, BSD License
- * Eric Sheridan (eric@infraredsecurity.com), Copyright (c) 2011 
+ * Eric Sheridan (eric@infraredsecurity.com), Copyright (c) 2011
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
@@ -28,7 +28,7 @@
  */
 package org.owasp.csrfguard;
 
-import java.io.IOException;
+import org.owasp.csrfguard.http.InterceptRedirectResponse;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -39,8 +39,7 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
-
-import org.owasp.csrfguard.http.InterceptRedirectResponse;
+import java.io.IOException;
 
 public final class CsrfGuardFilter implements Filter {
 
@@ -57,32 +56,43 @@ public final class CsrfGuardFilter implements Filter {
 		if (request instanceof HttpServletRequest && response instanceof HttpServletResponse) {
 			HttpServletRequest httpRequest = (HttpServletRequest) request;
 			HttpSession session = httpRequest.getSession(false);
-			
+
 			if (session == null) {
 				// If there is no session, no harm can be done
 				filterChain.doFilter(httpRequest, (HttpServletResponse) response);
 				return;
 			}
 
-			CsrfGuard csrfGuard = CsrfGuard.getInstance();
-			csrfGuard.getLogger().log(String.format("CsrfGuard analyzing request %s", httpRequest.getRequestURI()));
+            // Check to see if we should bypass security
+            String websealUser = (String)session.getAttribute("IS_WEBSEAL_USER");
+            boolean isWebsealUser = (websealUser != null ? Boolean.parseBoolean(websealUser) : false);
 
-			InterceptRedirectResponse httpResponse = new InterceptRedirectResponse((HttpServletResponse) response, httpRequest, csrfGuard);
+            if (!isWebsealUser) {
 
-//			 if(MultipartHttpServletRequest.isMultipartRequest(httpRequest)) {
-//				 httpRequest = new MultipartHttpServletRequest(httpRequest);
-//			 }
+                CsrfGuard csrfGuard = CsrfGuard.getInstance();
+                csrfGuard.getLogger().log(String.format("CsrfGuard analyzing request %s", httpRequest.getRequestURI()));
 
-			if (session.isNew() && csrfGuard.isUseNewTokenLandingPage()) {
-				csrfGuard.writeLandingPage(httpRequest, httpResponse);
-			} else if (csrfGuard.isValidRequest(httpRequest, httpResponse)) {
-				filterChain.doFilter(httpRequest, httpResponse);
-			} else {
-				/** invalid request - nothing to do - actions already executed **/
-			}
+                InterceptRedirectResponse httpResponse = new InterceptRedirectResponse((HttpServletResponse) response, httpRequest, csrfGuard);
 
-			/** update tokens **/
-			csrfGuard.updateTokens(httpRequest);
+    //			 if(MultipartHttpServletRequest.isMultipartRequest(httpRequest)) {
+    //				 httpRequest = new MultipartHttpServletRequest(httpRequest);
+    //			 }
+
+                if (session.isNew() && csrfGuard.isUseNewTokenLandingPage()) {
+                    csrfGuard.writeLandingPage(httpRequest, httpResponse);
+                } else if (csrfGuard.isValidRequest(httpRequest, httpResponse)) {
+                    filterChain.doFilter(httpRequest, httpResponse);
+                } else {
+                    /** invalid request - nothing to do - actions already executed **/
+                }
+
+                /** update tokens **/
+                csrfGuard.updateTokens(httpRequest);
+            } else {
+
+                // Skip Security for webseal users
+                filterChain.doFilter(request, response);
+            }
 
 		} else {
 			filterConfig.getServletContext().log(String.format("[WARNING] CsrfGuard does not know how to work with requests of class %s ", request.getClass().getName()));
